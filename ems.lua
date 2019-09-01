@@ -30,7 +30,20 @@ RegisterCommand('spawnstr', function()
         local wheelchair = CreateObject(GetHashKey('prop_ld_binbag_01'), GetEntityCoords(PlayerPedId()), true)
 end, false)
 
+RegisterCommand('ro', function(source, args)
+        DeleteOBJ('prop_ld_binbag_01')
+        TriggerEvent("chatMessage", "", {255,255,255}, "^3Objects(s) deleted.")
+end, false)
 
+function DeleteOBJ(theobject)
+    --[ Deletes The Object ]
+    local object = GetHashKey(theobject)
+    local x, y, z = table.unpack(GetEntityCoords(PlayerPedId(), true))
+    if DoesObjectOfTypeExistAtCoords(x, y, z, 2.5, object, true) then
+        local obj = GetClosestObjectOfType(x, y, z, 2.5, object, false, false, false)
+        DeleteObject(obj)
+    end
+end
 
 function VehicleInFront()
   local player = PlayerPedId()
