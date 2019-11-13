@@ -27,7 +27,7 @@ end)
 
 RegisterCommand('spawnstr', function() 
         LoadModel('prop_ld_binbag_01')
-        local wheelchair = CreateObject(GetHashKey('prop_ld_binbag_01'), GetEntityCoords(PlayerPedId()), true)
+        local str = CreateObject(GetHashKey('prop_ld_binbag_01'), GetEntityCoords(PlayerPedId()), true)
 end, false)
 
 RegisterCommand('ro', function(source, args)
@@ -125,16 +125,14 @@ end
 
 RegisterNetEvent("ARPF-EMS:pushstreacherss")
 AddEventHandler("ARPF-EMS:pushstreacherss", function()
-        local sleep = 500
         local ped = PlayerPedId()
         local pedCoords = GetEntityCoords(ped)
         local closestObject = GetClosestObjectOfType(pedCoords, 3.0, GetHashKey("prop_ld_binbag_01"), false)
         if DoesEntityExist(closestObject) then
-            sleep = 5
-            local wheelChairCoords = GetEntityCoords(closestObject)
-            local wheelChairForward = GetEntityForwardVector(closestObject)
-            local sitCoords = (wheelChairCoords + wheelChairForward * - 0.5)
-            local pickupCoords = (wheelChairCoords + wheelChairForward * 0.3)
+            local strCoords = GetEntityCoords(closestObject)
+            local strVecForward = GetEntityForwardVector(closestObject)
+            local sitCoords = (strCoords + strVecForward * - 0.5)
+            local pickupCoords = (strCoords + strVecForward * 0.3)
             if GetDistanceBetweenCoords(pedCoords, pickupCoords, true) <= 2.0 then
                 PickUp(closestObject)
             end
@@ -144,17 +142,15 @@ end)
 
 RegisterNetEvent("ARPF-EMS:getintostretcher")
 AddEventHandler("ARPF-EMS:getintostretcher", function()
- local sleep = 500
  local pP = GetPlayerPed(-1)
  local ped = PlayerPedId()
  local pedCoords = GetEntityCoords(ped)
  local closestObject = GetClosestObjectOfType(pedCoords, 3.0, GetHashKey("prop_ld_binbag_01"), false)
     if DoesEntityExist(closestObject) then
-     sleep = 5
-     local wheelChairCoords = GetEntityCoords(closestObject)
-     local wheelChairForward = GetEntityForwardVector(closestObject)
-     local sitCoords = (wheelChairCoords + wheelChairForward * - 0.5)
-     local pickupCoords = (wheelChairCoords + wheelChairForward * 0.3)
+     local strCoords = GetEntityCoords(closestObject)
+     local strVecForward = GetEntityForwardVector(closestObject)
+     local sitCoords = (strCoords + strVecForward * - 0.5)
+     local pickupCoords = (strCoords + strVecForward * 0.3)
         if GetDistanceBetweenCoords(pedCoords, sitCoords, true) <= 2.0 then
             TriggerEvent('sit', closestObject) 
         end
@@ -170,22 +166,23 @@ function revivePed(ped)
   ClearPedBloodDamage(ped)
 end
 
+-- Anim Taken from bed script from FFourms
 local inBedDicts = "anim@gangops@morgue@table@"
 local inBedAnims = "ko_front"
 RegisterNetEvent('sit')
 AddEventHandler('sit', function(strObject)
     local closestPlayer, closestPlayerDist = GetClosestPlayer()
-    local pP = GetPlayerPed(-1)
+    local playPed = GetPlayerPed(-1)
     if closestPlayer ~= nil and closestPlayerDist <= 1.5 then
         if IsEntityPlayingAnim(GetPlayerPed(closestPlayer), inBedDicts, inBedAnims, 3) then
-            ShowNotification("Somebody is already using the wheelchair!")
+            ShowNotification("Somebody is already using the Stretcher!")
             return
         end
     end
 
     LoadAnim(inBedDicts)
-  if IsPedDeadOrDying(pP) then
-    revivePed(pP)
+  if IsPedDeadOrDying(playPed) then
+    revivePed(playPed)
     AttachEntityToEntity(PlayerPedId(), strObject, 0, 0, 0.0, 2.1, 0.0, 0.0, 270.0, 0.0, false, false, false, false, 2, true)
     local heading = GetEntityHeading(strObject)
     wasdead = true
@@ -207,7 +204,7 @@ AddEventHandler('sit', function(strObject)
             TriggerEvent("unsit", strObject)
         end
     end 
-  elseif not IsPedDeadOrDying(pP) then
+  elseif not IsPedDeadOrDying(playPed) then
     AttachEntityToEntity(PlayerPedId(), strObject, 0, 0, 0.0, 2.1, 0.0, 0.0, 270.0, 0.0, false, false, false, false, 2, true)
     local heading = GetEntityHeading(strObject)
     wasdead = false
@@ -224,9 +221,8 @@ AddEventHandler('sit', function(strObject)
 
         if IsControlPressed(0, 32) then
             PlaceObjectOnGroundProperly(strObject)
-        end
-        if IsControlJustPressed(0, 73) then
-            TriggerEvent("unsit", strObject)
+        elseif IsControlJustPressed(0, 73) then
+          TriggerEvent("unsit", strObject)
         end
     end 
   end      
@@ -252,12 +248,12 @@ end)
 
 -------------------------------- FUNCTIONS ----------------------------------------------------------------------------
 
-PickUp = function(strObject)
+function PickUp(strObject)
     local closestPlayer, closestPlayerDist = GetClosestPlayer()
 
     if closestPlayer ~= nil and closestPlayerDist <= 1.5 then
         if IsEntityPlayingAnim(GetPlayerPed(closestPlayer), 'anim@heists@box_carry@', 'idle', 3) then
-            ShowNotification("Somebody is already driving the wheelchair!")
+            ShowNotification("Somebody is already pushing the Stretcher!")
             return
         end
     end
@@ -267,7 +263,6 @@ PickUp = function(strObject)
     LoadAnim("anim@heists@box_carry@")
 
     AttachEntityToEntity(strObject, PlayerPedId(), GetPedBoneIndex(PlayerPedId(),  28422), 0.0, -0.6, -1.43, 180.0, 170.0, 90.0, 0.0, false, false, true, false, 2, true)
-    --AttachEntityToEntity(entity1, entity2, boneIndex, xPos, yPos, zPos, xRot, yRot, zRot, p9, useSoftPinning, collision, isPed, vertexIndex, fixedRot)
     while IsEntityAttachedToEntity(strObject, PlayerPedId()) do
         Citizen.Wait(5)
 
@@ -275,17 +270,13 @@ PickUp = function(strObject)
             TaskPlayAnim(PlayerPedId(), 'anim@heists@box_carry@', 'idle', 8.0, 8.0, -1, 50, 0, false, false, false)
         end
 
-        if IsPedDeadOrDying(PlayerPedId()) then
-            DetachEntity(strObject, true, true)
-        end
-
-        if IsControlJustPressed(0, 73) then
+        if IsPedDeadOrDying(PlayerPedId()) or IsControlJustPressed(0, 73) then
             DetachEntity(strObject, true, true)
         end
     end
 end
 
-DrawText3Ds = function(coords, text, scale)
+function DrawText3Ds(coords, text, scale)
     local x,y,z = coords.x, coords.y, coords.z
     local onScreen, _x, _y = World3dToScreen2d(x, y, z)
     local pX, pY, pZ = table.unpack(GetGameplayCamCoords())
@@ -305,7 +296,7 @@ DrawText3Ds = function(coords, text, scale)
     DrawRect(_x, _y + 0.0150, 0.030 + factor, 0.025, 41, 11, 41, 100)
 end
 
-GetPlayers = function()
+function GetPlayers()
     local players = {}
 
     for i = 0, 256 do
@@ -317,7 +308,7 @@ GetPlayers = function()
     return players
 end
 
-GetClosestPlayer = function()
+function GetClosestPlayer()
     local players = GetPlayers()
     local closestDistance = -1
     local closestPlayer = -1
@@ -339,7 +330,7 @@ GetClosestPlayer = function()
     return closestPlayer, closestDistance
 end
 
-LoadAnim = function(dict)
+function LoadAnim(dict)
     while not HasAnimDictLoaded(dict) do
         RequestAnimDict(dict)
         
@@ -347,7 +338,7 @@ LoadAnim = function(dict)
     end
 end
 
-LoadModel = function(model)
+function LoadModel(model)
     while not HasModelLoaded(model) do
         RequestModel(model)
         
@@ -355,7 +346,7 @@ LoadModel = function(model)
     end
 end
 
-ShowNotification = function(msg)
+function ShowNotification(msg)
     SetNotificationTextEntry('STRING')
     AddTextComponentSubstringWebsite(msg)
     DrawNotification(false, true)
