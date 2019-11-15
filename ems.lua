@@ -5,7 +5,7 @@ strHashes = {}
 animDict = 'missfbi5ig_0'
 animName = 'lyinginpain_loop_steve'
 isOnstr = false
-
+local strTable = {}
 local Keys = {
   ["ESC"] = 322, ["F1"] = 288, ["F2"] = 289, ["F3"] = 170, ["F5"] = 166, ["F6"] = 167, ["F7"] = 168, ["F8"] = 169, ["F9"] = 56, ["F10"] = 57,
   ["~"] = 243, ["1"] = 157, ["2"] = 158, ["3"] = 160, ["4"] = 164, ["5"] = 165, ["6"] = 159, ["7"] = 161, ["8"] = 162, ["9"] = 163, ["-"] = 84, ["="] = 83, ["BACKSPACE"] = 177,
@@ -23,7 +23,6 @@ CreateThread(function()
         table.insert( strHashes, GetHashKey(v))
     end
 end) 
-
 
 RegisterCommand('spawnstr', function() 
         LoadModel('prop_ld_binbag_01')
@@ -73,20 +72,30 @@ end)
 local incar = false
 RegisterNetEvent("ARPF-EMS:togglestrincar")
 AddEventHandler("ARPF-EMS:togglestrincar", function()
-        if incar == false then 
-            StreachertoCar()
-            incar = true
-        elseif incar == true then
-            incar = false
-            StretcheroutCar()
-        end
-end, false)
+	
+	local veh = VehicleInFront()
+    local ped = GetPlayerPed(-1)
+    local pedCoords = GetEntityCoords(ped)
+    local closestObject = GetClosestObjectOfType(pedCoords, 3.0, GetHashKey("prop_ld_binbag_01"), false)
+    if IsEntityAttachedToAnyVehicle(closestObject) then
+    	incar = true
+    elseif IsEntityAttachedToEntity(closestObject, veh) then 
+    	incar = true
+    end
+    if incar == false then 
+        StreachertoCar()
+        incar = true
+    elseif incar == true then
+        incar = false
+        StretcheroutCar()
+    end
+end)
+
 
 
 function StreachertoCar()
-    
-    veh = VehicleInFront()
-    ped = GetPlayerPed(-1)
+    local veh = VehicleInFront()
+    local ped = GetPlayerPed(-1)
     local pedCoords = GetEntityCoords(ped)
     local closestObject = GetClosestObjectOfType(pedCoords, 3.0, GetHashKey("prop_ld_binbag_01"), false)
     if DoesEntityExist(closestObject) then
@@ -102,15 +111,15 @@ function StreachertoCar()
 end
 
 function StretcheroutCar()
-    veh = VehicleInFront()
-    ped = GetPlayerPed(-1)
+    local veh = VehicleInFront()
+    local ped = GetPlayerPed(-1)
     local pedCoords = GetEntityCoords(ped)
     local closestObject = GetClosestObjectOfType(pedCoords, 3.0, GetHashKey("prop_ld_binbag_01"), false)
     if DoesEntityExist(closestObject) then
         if GetVehiclePedIsIn(playerPed, false) == 0 and DoesEntityExist(veh) and IsEntityAVehicle(veh) then
             DetachEntity(closestObject, true, true)
             FreezeEntityPosition(closestObject, false)
-            coords = GetEntityCoords(closestObject, false)
+            local coords = GetEntityCoords(closestObject, false)
         SetEntityCoords(closestObject, coords.x-3,coords.y,coords.z)
         PlaceObjectOnGroundProperly(closestObject)
         else
@@ -121,7 +130,110 @@ function StretcheroutCar()
     end
 end
 -----------------------------------------------------------------------------------------------------------------------
+--[[
+test sync to server 
+attchedStr = {}
 
+if then 
+	table.insert('attchedStr',['obj'] = closestObject, ['to'] = veh)
+end 
+TriggerServerEvent('stretcher:table:update',attchedStr)
+
+ARPF-EMS:stretcherSync
+ARPF-EMS:server:stretcherSync
+
+strTable
+]]
+
+RegisterNetEvent("ARPF-EMS:stretcherSync")
+AddEventHandler("ARPF-EMS:stretcherSync", function(tableUpdate)
+	strTable = tableUpdate
+end)
+
+local changed = false
+Citizen.CreateThreadNow(function()
+	while true do 
+		Citizen.Wait(10)
+		TableID = 0 
+		local ped = PlayerPedId()
+        local pedCoords = GetEntityCoords(ped)
+        local closestObject = GetClosestObjectOfType(pedCoords, 10.0, GetHashKey("prop_ld_binbag_01"), false)
+        if DoesEntityExist(closestObject) then
+            local strCoords = GetEntityCoords(closestObject)
+            for i,v in ipairs(strTable) do
+			 	local strobj = v['obj']
+				if strobj == closestObject then
+					TableID = i 
+				elseif strobj ~= closestObject and TableID <= 0 then 
+					TableID = -1 -- this means that the new stretcher is not in the table and after checking all of the stretches it will then add the new one to the table and then send it to the server to then update all the clients on the server
+					print("not the right stretcher")
+				end  
+			end
+			if TableID == -1 then -- add to server table 
+				local attachedToWhat = GetEntityAttachedTo(closestObject) and not nil or "none" 
+				local state = 2
+				local tableNum = -1
+				local what = attachedToWhat
+				local sync = false
+				TriggerServerEvent("ARPF-EMS:server:stretcherSync",state,tableNum,what,sync)
+			elseif TableID > 0 then -- check if the stretcher has a changed state
+			end 
+
+			for k,u in pairs(strTable) do
+        		local strobj = strTable[k]['obj']
+        		--local strobj = u['obj'] -- one of these are faster 
+        		if DoesEntityExist(strobj) then
+        		 	local pedCoords = GetEntityCoords(ped)
+					local strCoords = GetEntityCoords(closestObject)
+					local distances = GetDistanceBetweenCoords(pedCoords.x, pedCoords.y, pedCoords.z, strCoords.x, strCoords.y, strCoords.z, true)
+        			local attachedToWhat = GetEntityAttachedTo(strobj) and not nil or "none"
+			        if 	distances < 5 then 
+			        	if IsEntityAttachedToAnyPed(strobj) or IsEntityAttachedToAnyVehicle(strobj) or IsEntityAttachedToAnyObject(strobj) then 
+							if attachedToWhat ~= v['to'] then -- even if somehow v['to'] == nil then it will change to "none"
+								v['to'] = attachedToWhat
+								local changed = true
+							end
+						else
+							if attachedToWhat == v['to'] then 
+								local change = false
+
+							else 
+								print(attachedToWhat)
+								print("this fucked up if it gets here and nothing is shown")
+							end
+						end
+					end
+	        	else
+	        	-- insert deleting into the deleting command TriggerServerEvent("ARPF-EMS:server:stretcherSync",state,tableNum,what,sync)	
+	        	end
+        	end  
+        end
+	end
+end)
+		
+--[[if IsEntityAttachedToAnyPed(strobj) then 
+	newWhat = GetEntityAttachedTo(strobj)
+	if newWhat ~= v['to'] then 
+		v['to'] = newWhat
+		local changed = true
+	end
+elseif IsEntityAttachedToAnyVehicle(strobj) then
+	newWhat = GetEntityAttachedTo(strobj)
+	if newWhat ~= v['to'] then 
+		v['to'] = newWhat
+		local changed = true
+	end
+elseif IsEntityAttachedToAnyObject(strobj) then 
+	newWhat = GetEntityAttachedTo(strobj)
+	if newWhat ~= v['to'] then 
+		v['to'] = newWhat
+		local changed = true
+	end
+else
+	if GetEntityAttachedTo(strobj) == nil or GetEntityAttachedTo(strobj) == v['to'] then 
+		local change = false 
+	end
+end]]
 
 RegisterNetEvent("ARPF-EMS:pushstreacherss")
 AddEventHandler("ARPF-EMS:pushstreacherss", function()
@@ -259,18 +371,32 @@ function PickUp(strObject)
     end
 
     NetworkRequestControlOfEntity(strObject)
+    --[[
+
+    # naitives to be used 
+    SlideObject(object, toX, toY, toZ, speedX, speedY, speedZ, collision)
+    AttachEntityToEntity(PlayerPedId(), strObject, GetPedBoneIndex(PlayerPedId(),  28422), 0.0, -0.6, -1.43, 180.0, 170.0, 90.0, 0.0, false, false, true, false, 2, true) 
+    AttachEntityToEntity(entity1, entity2, boneIndex, xPos, yPos, zPos, xRot, yRot, zRot, p9, useSoftPinning, collision, isPed, vertexIndex, fixedRot)
+   	ApplyForceToEntity(entity, forceFlags, x, y, z, offX, offY, offZ, boneIndex, isDirectionRel, ignoreUpVec, isForceRel, p12, p13)
+    SetObjectPhysicsParams(object, weight, p2, p3, p4, p5, gravity, p7, p8, p9, p10, buoyancy)
+    ActivatePhysics(entity)
+    GetEntityPhysicsHeading(entity)
+    DoesEntityHavePhysics(entity)
+    AttachEntityToEntityPhysically(entity1, entity2, boneIndex1, boneIndex2, xPos1, yPos1, zPos1, xPos2, yPos2, zPos2, xRot, yRot, zRot, breakForce, fixedRot, p15, collision, teleport, p18)
+    SetActivateObjectPhysicsAsSoonAsItIsUnfrozen(object, toggle)
+    ]]
 
     LoadAnim("anim@heists@box_carry@")
-
-    AttachEntityToEntity(strObject, PlayerPedId(), GetPedBoneIndex(PlayerPedId(),  28422), 0.0, -0.6, -1.43, 180.0, 170.0, 90.0, 0.0, false, false, true, false, 2, true)
-    while IsEntityAttachedToEntity(strObject, PlayerPedId()) do
+    local pedid = PlayerPedId()
+    AttachEntityToEntity(pedid, strObject, GetPedBoneIndex(PlayerPedId(),  28422), 0.0, -0.6, -1.43, 180.0, 170.0, 90.0, 0.0, false, false, true, false, 2, true)
+    while IsEntityAttachedToEntity(strObject, pedid) do
         Citizen.Wait(5)
 
-        if not IsEntityPlayingAnim(PlayerPedId(), 'anim@heists@box_carry@', 'idle', 3) then
-            TaskPlayAnim(PlayerPedId(), 'anim@heists@box_carry@', 'idle', 8.0, 8.0, -1, 50, 0, false, false, false)
+        if not IsEntityPlayingAnim(pedid, 'anim@heists@box_carry@', 'idle', 3) then
+            TaskPlayAnim(pedid, 'anim@heists@box_carry@', 'idle', 8.0, 8.0, -1, 50, 0, false, false, false)
         end
 
-        if IsPedDeadOrDying(PlayerPedId()) or IsControlJustPressed(0, 73) then
+        if IsPedDeadOrDying(pedid) or IsControlJustPressed(0, 73) then
             DetachEntity(strObject, true, true)
         end
     end
