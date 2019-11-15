@@ -18,31 +18,11 @@ local Keys = {
   ["NENTER"] = 201, ["N4"] = 108, ["N5"] = 60, ["N6"] = 107, ["N+"] = 96, ["N-"] = 97, ["N7"] = 117, ["N8"] = 61, ["N9"] = 118
 }
 
-CreateThread(function()
+Citizen.CreateThread(function()
     for k,v in ipairs(strNames) do
         table.insert( strHashes, GetHashKey(v))
     end
 end) 
-
-RegisterCommand('spawnstr', function() 
-        LoadModel('prop_ld_binbag_01')
-        local str = CreateObject(GetHashKey('prop_ld_binbag_01'), GetEntityCoords(PlayerPedId()), true)
-end, false)
-
-RegisterCommand('ro', function(source, args)
-        DeleteOBJ('prop_ld_binbag_01')
-        TriggerEvent("chatMessage", "", {255,255,255}, "^3Objects(s) deleted.")
-end, false)
-
-function DeleteOBJ(theobject)
-    --[ Deletes The Object ]
-    local object = GetHashKey(theobject)
-    local x, y, z = table.unpack(GetEntityCoords(PlayerPedId(), true))
-    if DoesObjectOfTypeExistAtCoords(x, y, z, 2.5, object, true) then
-        local obj = GetClosestObjectOfType(x, y, z, 2.5, object, false, false, false)
-        DeleteObject(obj)
-    end
-end
 
 function VehicleInFront()
   local player = PlayerPedId()
@@ -145,6 +125,28 @@ ARPF-EMS:server:stretcherSync
 strTable
 ]]
 
+RegisterCommand('spawnstr', function() 
+    LoadModel('prop_ld_binbag_01')
+    local str = CreateObject(GetHashKey('prop_ld_binbag_01'), GetEntityCoords(PlayerPedId()), true)
+end, false)
+
+RegisterCommand('delStr', function(source, args)
+	local object = GetHashKey('prop_ld_binbag_01')
+    local x, y, z = table.unpack(GetEntityCoords(PlayerPedId(), true))
+    if DoesObjectOfTypeExistAtCoords(x, y, z, 2.5, object, true) then
+        local obj = GetClosestObjectOfType(x, y, z, 2.5, object, false, false, false)
+        for q,d in ipairs(strTable) do
+        	if d['obj'] == obj then
+        		local attachedToWhat = GetEntityAttachedTo(obj) and not nil or "none" 
+        		DeleteObject(obj)
+        		TriggerServerEvent("ARPF-EMS:server:stretcherSync",3,q,attachedToWhat,false)
+        	end
+        end
+    end
+
+end, false)
+
+
 RegisterNetEvent("ARPF-EMS:stretcherSync")
 AddEventHandler("ARPF-EMS:stretcherSync", function(tableUpdate)
 	strTable = tableUpdate
@@ -196,7 +198,6 @@ Citizen.CreateThreadNow(function()
 						else
 							if attachedToWhat == v['to'] then 
 								local change = false
-
 							else 
 								print(attachedToWhat)
 								print("this fucked up if it gets here and nothing is shown")
