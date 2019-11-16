@@ -389,7 +389,7 @@ function PickUp(strObject)
 
     LoadAnim("anim@heists@box_carry@")
     local pedid = PlayerPedId()
-    AttachEntityToEntity(pedid, strObject, GetPedBoneIndex(PlayerPedId(),  28422), 0.0, -0.6, -1.43, 180.0, 170.0, 90.0, 0.0, false, false, true, false, 2, true)
+    AttachEntityToEntity(strObject, pedid, GetPedBoneIndex(PlayerPedId(),  28422), 0.0, -0.6, -1.43, 180.0, 170.0, 90.0, 0.0, false, false, true, false, 2, true)
     while IsEntityAttachedToEntity(strObject, pedid) do
         Citizen.Wait(5)
 
